@@ -124,10 +124,11 @@ def fetch_bond_10y() -> pd.Series:
     """获取中国10年期国债到期收益率(%)"""
     print("正在拉取中国 10 年期国债到期收益率数据...")
     try:
+        bond_func = getattr(ak, "bond_zh_us_yield_em", None) or getattr(ak, "bond_zh_us_rate")
         try:
-            bond_df = retry_call(ak.bond_zh_us_yield_em, start_date="20050101")
+            bond_df = retry_call(bond_func, start_date="20050101")
         except TypeError:
-            bond_df = retry_call(ak.bond_zh_us_yield_em)
+            bond_df = retry_call(bond_func)
 
         bond_df["日期"] = pd.to_datetime(bond_df["日期"])
         bond_df.set_index("日期", inplace=True)
@@ -148,26 +149,63 @@ def fetch_bond_10y() -> pd.Series:
         return pd.Series(dtype=float, name="bond_10y")
 
 
-def fetch_index_data(symbol: str, bond_series: pd.Series) -> pd.DataFrame:
-    """获取指数 PE / PB 并合成每日 ERP(%)"""
-    print(f"正在拉取 [{symbol}] 历史 PE 与 PB 估值数据...")
+def fetch_index_data(symbol: str, sina_symbol: str, bond_series: pd.Series) -> pd.DataFrame:
+    """获取指数月末 PE/PB 锚点 + 每日真实收盘价合成完整日频 PE/PB 与 ERP(%)"""
+    print(f"正在拉取 [{symbol} ({sina_symbol})] 月末估值锚点与历史日线收盘价...")
+    # 1. 获取乐咕乐股月末 PE / PB 锚点数据
     pe_df = retry_call(ak.stock_index_pe_lg, symbol=symbol)
     pe_df["日期"] = pd.to_datetime(pe_df["日期"])
     pe_df.set_index("日期", inplace=True)
+    pe_df.sort_index(inplace=True)
 
     pb_df = retry_call(ak.stock_index_pb_lg, symbol=symbol)
     pb_df["日期"] = pd.to_datetime(pb_df["日期"])
     pb_df.set_index("日期", inplace=True)
+    pb_df.sort_index(inplace=True)
 
-    df = pd.merge(
-        pe_df[["滚动市盈率"]],
+    anchor_cols_pe = ["滚动市盈率", "指数"] if "指数" in pe_df.columns else ["滚动市盈率"]
+    anchor_df = pd.merge(
+        pe_df[anchor_cols_pe],
         pb_df[["市净率"]],
         left_index=True,
         right_index=True,
         how="inner",
     )
-    df.sort_index(inplace=True)
+    anchor_df.sort_index(inplace=True)
+    anchor_df.rename(columns={"滚动市盈率": "anchor_pe", "市净率": "anchor_pb"}, inplace=True)
 
+    # 2. 获取指数完整日频收盘价（2005年至今 5200+ 交易日，兼容新旧版 AkShare 接口名）
+    daily_func = getattr(ak, "index_zh_daily_sina", None) or getattr(ak, "stock_zh_index_daily")
+    daily_df = retry_call(daily_func, symbol=sina_symbol)
+    date_col = "date" if "date" in daily_df.columns else "日期"
+    daily_df["日期"] = pd.to_datetime(daily_df[date_col])
+    daily_df.set_index("日期", inplace=True)
+    daily_df.sort_index(inplace=True)
+    daily_close = pd.to_numeric(daily_df["close"], errors="coerce").rename("close")
+
+    # 3. 确定每个月末锚点日对应的指数基准收盘价 anchor_close
+    if "指数" in anchor_df.columns:
+        lg_close = pd.to_numeric(anchor_df["指数"], errors="coerce")
+        anchor_df["anchor_close"] = daily_close.reindex(anchor_df.index).combine_first(lg_close)
+    else:
+        anchor_df["anchor_close"] = daily_close.reindex(anchor_df.index)
+
+    # 4. 合并日频序列，仅做前向填充 (ffill) 杜绝未来函数，按月内真实涨跌幅还原每日 PE / PB
+    all_dates = daily_close.index.union(anchor_df.index).sort_values()
+    df = pd.DataFrame(index=all_dates)
+    df.index.name = "日期"
+    df["close"] = daily_close.reindex(all_dates)
+    df = df.join(anchor_df[["anchor_pe", "anchor_pb", "anchor_close"]], how="left")
+    df["close"] = df["close"].combine_first(df["anchor_close"])
+
+    df[["anchor_pe", "anchor_pb", "anchor_close"]] = df[["anchor_pe", "anchor_pb", "anchor_close"]].ffill()
+    df.dropna(subset=["close", "anchor_pe", "anchor_pb", "anchor_close"], inplace=True)
+
+    price_ratio = df["close"] / df["anchor_close"]
+    df["滚动市盈率"] = df["anchor_pe"] * price_ratio
+    df["市净率"] = df["anchor_pb"] * price_ratio
+
+    # 5. 合并10年期国债收益率并计算日频 ERP (单位: %，即 E/P(%) - Y_10Y(%))
     if not bond_series.empty:
         df = df.join(bond_series, how="left")
         df["bond_10y"] = df["bond_10y"].ffill().bfill()
@@ -176,6 +214,7 @@ def fetch_index_data(symbol: str, bond_series: pd.Series) -> pd.DataFrame:
         df["bond_10y"] = float("nan")
         df["ERP"] = float("nan")
 
+    print(f"[{symbol}] 日频估值合成完成: 共 {len(df)} 个交易日 ({df.index.min().date()} ~ {df.index.max().date()})")
     return df
 
 
@@ -327,8 +366,8 @@ def match_nine_grid(state_300: str, state_500: str) -> dict:
 # ==============================================================================
 def main():
     bond_10y_series = fetch_bond_10y()
-    val_df_300 = fetch_index_data("沪深300", bond_10y_series)
-    val_df_500 = fetch_index_data("中证500", bond_10y_series)
+    val_df_300 = fetch_index_data("沪深300", "sh000300", bond_10y_series)
+    val_df_500 = fetch_index_data("中证500", "sh000905", bond_10y_series)
 
     if val_df_300.empty or val_df_500.empty:
         raise RuntimeError("沪深300或中证500估值数据为空，无法计算策略状态。")
