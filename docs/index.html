@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>全天候动态 ETF 组合 · 5.2 估值温度看板</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <script src="./data.js"></script>
+  <style>
+    :root {
+      --bg-page: #0b1120;
+      --bg-card: #131c31;
+      --bg-card-alt: #18233c;
+      --border-color: #243252;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --ice-color: #38bdf8;
+      --ice-bg: rgba(56, 189, 248, 0.14);
+      --normal-color: #34d399;
+      --normal-bg: rgba(52, 211, 153, 0.14);
+      --boil-color: #f87171;
+      --boil-bg: rgba(248, 113, 113, 0.14);
+      --accent: #6366f1;
+      --gold: #fbbf24;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      line-height: 1.5;
+      padding: 20px 16px 48px;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .title-group h1 {
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .version-pill {
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.4);
+    }
+
+    .title-group p {
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+      margin-top: 4px;
+    }
+
+    .meta-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .meta-badge {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .meta-badge strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Hero Banner */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1.85fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 960px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 1.02rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zone-banner {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(19, 28, 49, 0.9));
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .zone-label {
+      font-size: 0.8rem;
+      color: #a5b4fc;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+
+    .zone-msg {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .deposit-box {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      background: var(--bg-card-alt);
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+    }
+
+    .deposit-amount {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--gold);
+    }
+
+    .allocation-list {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .allocation-list {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .etf-item {
+      background: var(--bg-card-alt);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .etf-role {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .etf-name {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .etf-code {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      margin-bottom: 10px;
+    }
+
+    .etf-weight {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #38bdf8;
+    }
+
+    .etf-cash {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* Dual Index Thermometers */
+    .index-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .index-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .state-badge {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .state-ice {
+      background: var(--ice-bg);
+      color: var(--ice-color);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+
+    .state-normal {
+      background: var(--normal-bg);
+      color: var(--normal-color);
+      border: 1px solid rgba(52, 211, 153, 0.4);
+    }
+
+    .state-boil {
+      background: var(--boil-bg);
+      color: var(--boil-color);
+      border: 1px solid rgba(248, 113, 113, 0.4);
+    }
+
+    .temp-main-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .temp-big {
+      font-size: 2.3rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .formula-note {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    /* Thermometer Bar */
+    .thermo-wrap {
+      margin: 14px 0 18px;
+    }
+
+    .thermo-bar {
+      position: relative;
+      height: 14px;
+      border-radius: 999px;
+      background: linear-gradient(
+        90deg,
+        #0284c7 0%,
+        #38bdf8 20%,
+        #2dd4bf 30%,
+        #34d399 50%,
+        #fbbf24 70%,
+        #f97316 80%,
+        #ef4444 100%
+      );
+      margin-bottom: 8px;
+    }
+
+    .thermo-tick {
+      position: absolute;
+      top: -3px;
+      bottom: -3px;
+      width: 2px;
+      background: rgba(255, 255, 255, 0.65);
+    }
+
+    .thermo-pointer {
+      position: absolute;
+      top: -6px;
+      width: 14px;
+      height: 26px;
+      border-radius: 4px;
+      background: #ffffff;
+      border: 2px solid #0f172a;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+      transform: translateX(-50%);
+      transition: left 0.4s ease;
+    }
+
+    .thermo-labels {
+      position: relative;
+      height: 18px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .thermo-labels span {
+      position: absolute;
+      transform: translateX(-50%);
+    }
+
+    .buffer-box {
+      background: var(--bg-card-alt);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.82rem;
+      margin-bottom: 14px;
+    }
+
+    .buffer-box .tag {
+      color: var(--text-primary);
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .buffer-box .next {
+      color: var(--text-secondary);
+    }
+
+    .metrics-subgrid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .metric-pill {
+      background: var(--bg-card-alt);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .metric-pill .m-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .metric-pill .m-val {
+      font-size: 1.08rem;
+      font-weight: 700;
+      margin: 2px 0;
+    }
+
+    .metric-pill .m-pct {
+      font-size: 0.76rem;
+      color: #a5b4fc;
+    }
+
+    /* Charts */
+    .chart-card {
+      margin-bottom: 24px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .btn-filter {
+      background: var(--bg-card-alt);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-filter:hover,
+    .btn-filter.active {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+
+    .chart-box {
+      width: 100%;
+      height: 400px;
+    }
+
+    .dual-chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 960px) {
+      .dual-chart-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Nine Grid Table */
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+
+    th, td {
+      padding: 11px 12px;
+      text-align: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      background: var(--bg-card-alt);
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    tr.active-row {
+      background: rgba(99, 102, 241, 0.18);
+      font-weight: 600;
+    }
+
+    tr.active-row td {
+      border-top: 1px solid #6366f1;
+      border-bottom: 1px solid #6366f1;
+    }
+
+    .active-indicator {
+      display: inline-block;
+      background: #6366f1;
+      color: #fff;
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-left: 6px;
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      margin-top: 32px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Top Header -->
+    <header class="header">
+      <div class="title-group">
+        <h1>
+          全天候动态 ETF 组合 · 温度看板
+          <span class="version-pill" id="strategy-version">v5.2 迟滞缓冲版</span>
+        </h1>
+        <p>黄金 20% + 红利低波 15% 固定安全垫 | 沪深300 & 中证500 独立估值定投 + 国债蓄水池动态再平衡</p>
+      </div>
+      <div class="meta-badges">
+        <div class="meta-badge">最新估值日期：<strong id="latest-date">--</strong></div>
+        <div class="meta-badge">10Y国债收益率：<strong id="bond-10y">--</strong></div>
+        <div class="meta-badge">数据更新：<strong id="updated-at">--</strong></div>
+      </div>
+    </header>
+
+    <!-- Hero Section: Action & Target Allocation -->
+    <section class="hero-grid">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📌 今日策略状态与定投指令</div>
+          <span class="version-pill" id="zone-id-badge">九宫格 #--</span>
+        </div>
+        <div class="zone-banner">
+          <div class="zone-label">当前命中状态</div>
+          <div class="zone-msg" id="zone-msg">加载中...</div>
+        </div>
+        <div class="deposit-box">
+          <div>
+            <div style="font-size: 0.84rem; color: var(--text-secondary);">当月建议定投金额（基准 ¥3,000）</div>
+            <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 2px;">每出一个冰点 +1,000 元，每出一个沸点 -1,000 元</div>
+          </div>
+          <div class="deposit-amount" id="deposit-amt">¥3,000</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🎯 五大 ETF 目标配置权重与当月入金拆分</div>
+          <span style="font-size: 0.78rem; color: var(--text-secondary);">月度再平衡阈值 ±5% | 每日熔断阈值 ±10%</span>
+        </div>
+        <div class="allocation-list" id="allocation-list"></div>
+      </div>
+    </section>
+
+    <!-- Dual Index Thermometers -->
+    <section class="index-grid">
+      <!-- CSI 300 Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 沪深300 (510300.XSHG) 综合温度</div>
+          <span class="state-badge" id="badge-300">--</span>
+        </div>
+        <div class="temp-main-row">
+          <div class="temp-big" id="temp-300">--°C</div>
+          <div class="formula-note" id="formula-300">50% PE分位 + 20% PB分位 + 30% (100% - ERP分位)</div>
+        </div>
+        <div class="thermo-wrap">
+          <div class="thermo-bar">
+            <div class="thermo-tick" style="left: 20%;"></div>
+            <div class="thermo-tick" style="left: 30%;"></div>
+            <div class="thermo-tick" style="left: 70%;"></div>
+            <div class="thermo-tick" style="left: 80%;"></div>
+            <div class="thermo-pointer" id="pointer-300" style="left: 50%;"></div>
+          </div>
+          <div class="thermo-labels">
+            <span style="left: 0%;">0°C</span>
+            <span style="left: 20%; color: #38bdf8;">20°C 冰点</span>
+            <span style="left: 30%;">30°C 缓冲</span>
+            <span style="left: 70%;">70°C 缓冲</span>
+            <span style="left: 80%; color: #f87171;">80°C 沸点</span>
+            <span style="left: 100%;">100°C</span>
+          </div>
+        </div>
+        <div class="buffer-box">
+          <div class="tag" id="buf-tag-300">--</div>
+          <div class="next" id="buf-next-300">--</div>
+        </div>
+        <div class="metrics-subgrid" id="metrics-300"></div>
+      </div>
+
+      <!-- CSI 500 Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 中证500 (510500.XSHG) 综合温度</div>
+          <span class="state-badge" id="badge-500">--</span>
+        </div>
+        <div class="temp-main-row">
+          <div class="temp-big" id="temp-500">--°C</div>
+          <div class="formula-note" id="formula-500">30% PE分位 + 40% PB分位 + 30% (100% - ERP分位)</div>
+        </div>
+        <div class="thermo-wrap">
+          <div class="thermo-bar">
+            <div class="thermo-tick" style="left: 20%;"></div>
+            <div class="thermo-tick" style="left: 30%;"></div>
+            <div class="thermo-tick" style="left: 70%;"></div>
+            <div class="thermo-tick" style="left: 80%;"></div>
+            <div class="thermo-pointer" id="pointer-500" style="left: 50%;"></div>
+          </div>
+          <div class="thermo-labels">
+            <span style="left: 0%;">0°C</span>
+            <span style="left: 20%; color: #38bdf8;">20°C 冰点</span>
+            <span style="left: 30%;">30°C 缓冲</span>
+            <span style="left: 70%;">70°C 缓冲</span>
+            <span style="left: 80%; color: #f87171;">80°C 沸点</span>
+            <span style="left: 100%;">100°C</span>
+          </div>
+        </div>
+        <div class="buffer-box">
+          <div class="tag" id="buf-tag-500">--</div>
+          <div class="next" id="buf-next-500">--</div>
+        </div>
+        <div class="metrics-subgrid" id="metrics-500"></div>
+      </div>
+    </section>
+
+    <!-- Chart 1: Historical Temperature Curve -->
+    <section class="card chart-card">
+      <div class="card-header">
+        <div class="card-title">📈 沪深300 & 中证500 历史综合温度走势（含 20°C/30°C 与 70°C/80°C 迟滞缓冲带）</div>
+        <div class="btn-group" id="range-buttons">
+          <button class="btn-filter" data-range="1y">近 1 年</button>
+          <button class="btn-filter" data-range="3y">近 3 年</button>
+          <button class="btn-filter active" data-range="2020">2020 至今 (回测区间)</button>
+          <button class="btn-filter" data-range="all">全部历史</button>
+        </div>
+      </div>
+      <div id="chart-temp" class="chart-box"></div>
+    </section>
+
+    <!-- Chart 2: Pie + Historical Weights & Deposit -->
+    <section class="dual-chart-grid">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🥧 当前目标持仓结构</div>
+        </div>
+        <div id="chart-pie" style="width: 100%; height: 340px;"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">⚖️ 历史目标仓位与月度定投金额轨迹</div>
+        </div>
+        <div id="chart-weights" style="width: 100%; height: 340px;"></div>
+      </div>
+    </section>
+
+    <!-- Chart 3: Sub-indicators History -->
+    <section class="card chart-card">
+      <div class="card-header">
+        <div class="card-title">🔍 指数分项估值指标历史走势（PE分位 / PB分位 / ERP股债利差）</div>
+        <div class="btn-group" id="sub-index-buttons">
+          <button class="btn-filter active" data-idx="300">沪深300 细项</button>
+          <button class="btn-filter" data-idx="500">中证500 细项</button>
+        </div>
+      </div>
+      <div id="chart-sub" class="chart-box" style="height: 350px;"></div>
+    </section>
+
+    <!-- Nine-Grid Matrix Table -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">🧭 5.2 策略九宫格状态映射全景表</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>沪深300 状态</th>
+              <th>中证500 状态</th>
+              <th>沪深300 (510300)</th>
+              <th>中证500 (510500)</th>
+              <th>红利低波 (512890)</th>
+              <th>国债蓄水池 (511010)</th>
+              <th>黄金 (518880)</th>
+              <th>月度定投额</th>
+              <th>策略说明</th>
+            </tr>
+          </thead>
+          <tbody id="nine-grid-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="footer">
+      由 GitHub Actions 每日自动拉取 AkShare 数据计算并发布至 GitHub Pages · 策略内核：dynamic_etf_tune5.2.py
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      const data = window.STRATEGY_DATA;
+      if (!data) {
+        document.getElementById("zone-msg").textContent = "尚未生成数据，请先运行 python run_daily_5_2.py 或触发 GitHub Actions。";
+        return;
+      }
+
+      const stateClassMap = {
+        "冰点": "state-ice",
+        "常温": "state-normal",
+        "沸点": "state-boil"
+      };
+
+      const stateColorMap = {
+        "冰点": "#38bdf8",
+        "常温": "#34d399",
+        "沸点": "#f87171"
+      };
+
+      // 1. Header & Hero
+      document.getElementById("latest-date").textContent = data.latest_date || "--";
+      document.getElementById("bond-10y").textContent = data.bond_10y != null ? data.bond_10y.toFixed(2) + "%" : "--";
+      document.getElementById("updated-at").textContent = data.updated_at || "--";
+
+      const cur = data.current;
+      document.getElementById("zone-id-badge").textContent = `九宫格 #${cur.zone_id}`;
+      document.getElementById("zone-msg").textContent = cur.zone_msg;
+      document.getElementById("deposit-amt").textContent = "¥" + cur.deposit_amt.toLocaleString();
+
+      // Allocation Cards
+      const etfOrder = ["hs300", "zz500", "div_lowvol", "bond", "gold"];
+      const allocContainer = document.getElementById("allocation-list");
+      allocContainer.innerHTML = etfOrder.map(key => {
+        const meta = data.etf_meta[key];
+        const w = cur.weights[key];
+        const cash = Math.round(cur.deposit_amt * w / 100);
+        return `
+          <div class="etf-item">
+            <div>
+              <div class="etf-role">${meta.role}</div>
+              <div class="etf-name">${meta.name}</div>
+              <div class="etf-code">${meta.code}</div>
+            </div>
+            <div>
+              <div class="etf-weight">${w}%</div>
+              <div class="etf-cash">当月定投参考: ¥${cash}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // 2. Render Index Card
+      function renderIndexCard(suffix, info) {
+        const badge = document.getElementById(`badge-${suffix}`);
+        badge.textContent = info.state + (info.cyclical_veto ? " (PB底部保护)" : "");
+        badge.className = "state-badge " + (stateClassMap[info.state] || "state-normal");
+
+        const tempEl = document.getElementById(`temp-${suffix}`);
+        tempEl.textContent = info.temp.toFixed(1) + "°C";
+        tempEl.style.color = stateColorMap[info.state] || "#f1f5f9";
+
+        const pointer = document.getElementById(`pointer-${suffix}`);
+        const clamped = Math.max(0, Math.min(100, info.temp));
+        pointer.style.left = clamped + "%";
+
+        document.getElementById(`buf-tag-${suffix}`).textContent = info.buffer_tag;
+        document.getElementById(`buf-next-${suffix}`).textContent = info.next_trigger;
+
+        const mGrid = document.getElementById(`metrics-${suffix}`);
+        mGrid.innerHTML = `
+          <div class="metric-pill">
+            <div class="m-label">PE-TTM (近10年)</div>
+            <div class="m-val">${info.pe.toFixed(2)}x</div>
+            <div class="m-pct">历史分位: ${info.pe_pct.toFixed(1)}%</div>
+          </div>
+          <div class="metric-pill">
+            <div class="m-label">PB 市净率 (近10年)</div>
+            <div class="m-val">${info.pb.toFixed(2)}x</div>
+            <div class="m-pct">历史分位: ${info.pb_pct.toFixed(1)}%</div>
+          </div>
+          <div class="metric-pill">
+            <div class="m-label">ERP 股债利差 (近5年)</div>
+            <div class="m-val">${info.erp != null ? info.erp.toFixed(2) + "%" : "--"}</div>
+            <div class="m-pct">换算温度: ${info.erp_temp.toFixed(1)}°C (分位 ${info.erp_pct != null ? info.erp_pct.toFixed(1) + "%" : "--"})</div>
+          </div>
+        `;
+      }
+
+      renderIndexCard("300", cur.hs300);
+      renderIndexCard("500", cur.zz500);
+
+      // 3. Nine-Grid Table
+      const tbody = document.getElementById("nine-grid-tbody");
+      tbody.innerHTML = data.nine_grid.map(row => {
+        const w = row.weights_pct;
+        return `
+          <tr class="${row.active ? "active-row" : ""}">
+            <td>#${row.id}${row.active ? '<span class="active-indicator">当前</span>' : ""}</td>
+            <td><span class="state-badge ${stateClassMap[row.state_300]}">${row.state_300}</span></td>
+            <td><span class="state-badge ${stateClassMap[row.state_500]}">${row.state_500}</span></td>
+            <td>${w.hs300}%</td>
+            <td>${w.zz500}%</td>
+            <td>${w.div_lowvol}%</td>
+            <td><strong>${w.bond}%</strong></td>
+            <td>${w.gold}%</td>
+            <td style="color: var(--gold); font-weight: 700;">¥${row.deposit_amt}</td>
+            <td style="text-align: left;">${row.zone_msg}</td>
+          </tr>
+        `;
+      }).join("");
+
+      // 4. Charts Initialization
+      const h = data.history;
+      const chartTemp = echarts.init(document.getElementById("chart-temp"));
+      const chartPie = echarts.init(document.getElementById("chart-pie"));
+      const chartWeights = echarts.init(document.getElementById("chart-weights"));
+      const chartSub = echarts.init(document.getElementById("chart-sub"));
+
+      function getStartIndex(rangeKey) {
+        const dates = h.dates;
+        if (!dates.length || rangeKey === "all") return 0;
+        const lastDate = new Date(dates[dates.length - 1]);
+        let cutoffStr = "2020-01-01";
+        if (rangeKey === "1y") {
+          const d = new Date(lastDate);
+          d.setFullYear(d.getFullYear() - 1);
+          cutoffStr = d.toISOString().slice(0, 10);
+        } else if (rangeKey === "3y") {
+          const d = new Date(lastDate);
+          d.setFullYear(d.getFullYear() - 3);
+          cutoffStr = d.toISOString().slice(0, 10);
+        }
+        const idx = dates.findIndex(d => d >= cutoffStr);
+        return idx >= 0 ? idx : 0;
+      }
+
+      let currentRange = "2020";
+      let currentSubIdx = "300";
+
+      function updateTempChart() {
+        const startIdx = getStartIndex(currentRange);
+        const dates = h.dates.slice(startIdx);
+        const t300 = h.temp_300.slice(startIdx);
+        const t500 = h.temp_500.slice(startIdx);
+        const s300 = h.state_300.slice(startIdx);
+        const s500 = h.state_500.slice(startIdx);
+
+        chartTemp.setOption({
+          backgroundColor: "transparent",
+          tooltip: {
+            trigger: "axis",
+            backgroundColor: "rgba(15, 23, 42, 0.95)",
+            borderColor: "#334155",
+            textStyle: { color: "#f1f5f9" },
+            formatter: function (params) {
+              const i = params[0].dataIndex;
+              return `
+                <div style="font-weight:700;margin-bottom:6px;">📅 ${dates[i]}</div>
+                <div style="color:#38bdf8;">● 沪深300温度: <b>${t300[i]}°C</b> 【${s300[i]}】</div>
+                <div style="color:#fbbf24;margin-top:4px;">● 中证500温度: <b>${t500[i]}°C</b> 【${s500[i]}】</div>
+              `;
+            }
+          },
+          legend: {
+            data: ["沪深300 综合温度", "中证500 综合温度"],
+            textStyle: { color: "#cbd5e1" },
+            top: 0
+          },
+          grid: { left: 48, right: 30, top: 40, bottom: 55 },
+          dataZoom: [
+            { type: "inside", start: 0, end: 100 },
+            { type: "slider", height: 22, bottom: 10, borderColor: "#243252", textStyle: { color: "#94a3b8" } }
+          ],
+          xAxis: {
+            type: "category",
+            data: dates,
+            axisLabel: { color: "#94a3b8" },
+            axisLine: { lineStyle: { color: "#334155" } }
+          },
+          yAxis: {
+            type: "value",
+            min: 0,
+            max: 100,
+            axisLabel: { color: "#94a3b8", formatter: "{value}°C" },
+            splitLine: { lineStyle: { color: "rgba(51, 65, 85, 0.4)" } }
+          },
+          series: [
+            {
+              name: "沪深300 综合温度",
+              type: "line",
+              data: t300,
+              showSymbol: false,
+              lineStyle: { width: 2.2, color: "#38bdf8" },
+              itemStyle: { color: "#38bdf8" },
+              markLine: {
+                silent: true,
+                symbol: "none",
+                label: { position: "insideEndTop", color: "#94a3b8", fontSize: 11 },
+                data: [
+                  { yAxis: 20, lineStyle: { color: "#38bdf8", type: "solid", width: 1.5 }, label: { formatter: "20°C 冰点触发线" } },
+                  { yAxis: 30, lineStyle: { color: "#38bdf8", type: "dashed", width: 1 }, label: { formatter: "30°C 退出冰点缓冲线" } },
+                  { yAxis: 70, lineStyle: { color: "#f87171", type: "dashed", width: 1 }, label: { formatter: "70°C 退出沸点缓冲线" } },
+                  { yAxis: 80, lineStyle: { color: "#f87171", type: "solid", width: 1.5 }, label: { formatter: "80°C 沸点触发线" } }
+                ]
+              },
+              markArea: {
+                silent: true,
+                data: [
+                  [{ yAxis: 0, itemStyle: { color: "rgba(56, 189, 248, 0.08)" } }, { yAxis: 20 }],
+                  [{ yAxis: 20, itemStyle: { color: "rgba(56, 189, 248, 0.03)" } }, { yAxis: 30 }],
+                  [{ yAxis: 70, itemStyle: { color: "rgba(248, 113, 113, 0.03)" } }, { yAxis: 80 }],
+                  [{ yAxis: 80, itemStyle: { color: "rgba(248, 113, 113, 0.08)" } }, { yAxis: 100 }]
+                ]
+              }
+            },
+            {
+              name: "中证500 综合温度",
+              type: "line",
+              data: t500,
+              showSymbol: false,
+              lineStyle: { width: 2.2, color: "#fbbf24" },
+              itemStyle: { color: "#fbbf24" }
+            }
+          ]
+        });
+      }
+
+      function updatePieAndWeights() {
+        const w = cur.weights;
+        chartPie.setOption({
+          tooltip: { trigger: "item", formatter: "{b}: {c}% ({d}%)" },
+          legend: { bottom: 0, textStyle: { color: "#cbd5e1", fontSize: 12 } },
+          series: [
+            {
+              type: "pie",
+              radius: ["42%", "70%"],
+              center: ["50%", "44%"],
+              itemStyle: { borderRadius: 6, borderColor: "#131c31", borderWidth: 2 },
+              label: { color: "#f1f5f9", formatter: "{b}\n{c}%" },
+              data: [
+                { value: w.bond, name: "国债 ETF", itemStyle: { color: "#6366f1" } },
+                { value: w.gold, name: "黄金 ETF", itemStyle: { color: "#fbbf24" } },
+                { value: w.div_lowvol, name: "红利低波 ETF", itemStyle: { color: "#34d399" } },
+                { value: w.hs300, name: "沪深300 ETF", itemStyle: { color: "#38bdf8" } },
+                { value: w.zz500, name: "中证500 ETF", itemStyle: { color: "#f472b6" } }
+              ]
+            }
+          ]
+        });
+
+        const startIdx = getStartIndex(currentRange);
+        const dates = h.dates.slice(startIdx);
+        chartWeights.setOption({
+          tooltip: { trigger: "axis" },
+          legend: {
+            data: ["沪深300", "中证500", "红利低波", "黄金", "国债", "月定投额(右轴)"],
+            textStyle: { color: "#cbd5e1", fontSize: 11 },
+            top: 0
+          },
+          grid: { left: 45, right: 55, top: 38, bottom: 30 },
+          xAxis: {
+            type: "category",
+            data: dates,
+            axisLabel: { color: "#94a3b8" }
+          },
+          yAxis: [
+            {
+              type: "value",
+              min: 0,
+              max: 100,
+              axisLabel: { color: "#94a3b8", formatter: "{value}%" },
+              splitLine: { lineStyle: { color: "rgba(51, 65, 85, 0.35)" } }
+            },
+            {
+              type: "value",
+              min: 0,
+              max: 6000,
+              axisLabel: { color: "#fbbf24", formatter: "¥{value}" },
+              splitLine: { show: false }
+            }
+          ],
+          series: [
+            { name: "沪深300", type: "line", stack: "w", areaStyle: {}, showSymbol: false, data: h.w_hs300.slice(startIdx), itemStyle: { color: "#38bdf8" } },
+            { name: "中证500", type: "line", stack: "w", areaStyle: {}, showSymbol: false, data: h.w_zz500.slice(startIdx), itemStyle: { color: "#f472b6" } },
+            { name: "红利低波", type: "line", stack: "w", areaStyle: {}, showSymbol: false, data: h.w_div.slice(startIdx), itemStyle: { color: "#34d399" } },
+            { name: "黄金", type: "line", stack: "w", areaStyle: {}, showSymbol: false, data: h.w_gold.slice(startIdx), itemStyle: { color: "#fbbf24" } },
+            { name: "国债", type: "line", stack: "w", areaStyle: {}, showSymbol: false, data: h.w_bond.slice(startIdx), itemStyle: { color: "#6366f1" } },
+            {
+              name: "月定投额(右轴)",
+              type: "line",
+              yAxisIndex: 1,
+              step: "end",
+              showSymbol: false,
+              lineStyle: { width: 2, color: "#ffffff", type: "dashed" },
+              data: h.deposit_amt.slice(startIdx)
+            }
+          ]
+        });
+      }
+
+      function updateSubChart() {
+        const startIdx = getStartIndex(currentRange);
+        const dates = h.dates.slice(startIdx);
+        const pePct = (currentSubIdx === "300" ? h.pe_pct_300 : h.pe_pct_500).slice(startIdx);
+        const pbPct = (currentSubIdx === "300" ? h.pb_pct_300 : h.pb_pct_500).slice(startIdx);
+        const erpVal = (currentSubIdx === "300" ? h.erp_300 : h.erp_500).slice(startIdx);
+
+        chartSub.setOption({
+          tooltip: { trigger: "axis" },
+          legend: {
+            data: ["PE-TTM 10年分位(%)", "PB 10年分位(%)", "ERP 股债利差(%, 右轴)"],
+            textStyle: { color: "#cbd5e1" },
+            top: 0
+          },
+          grid: { left: 48, right: 52, top: 38, bottom: 30 },
+          xAxis: {
+            type: "category",
+            data: dates,
+            axisLabel: { color: "#94a3b8" }
+          },
+          yAxis: [
+            {
+              type: "value",
+              min: 0,
+              max: 100,
+              axisLabel: { color: "#94a3b8", formatter: "{value}%" },
+              splitLine: { lineStyle: { color: "rgba(51, 65, 85, 0.35)" } }
+            },
+            {
+              type: "value",
+              axisLabel: { color: "#34d399", formatter: "{value}%" },
+              splitLine: { show: false }
+            }
+          ],
+          series: [
+            { name: "PE-TTM 10年分位(%)", type: "line", showSymbol: false, data: pePct, itemStyle: { color: "#38bdf8" } },
+            { name: "PB 10年分位(%)", type: "line", showSymbol: false, data: pbPct, itemStyle: { color: "#a855f7" } },
+            { name: "ERP 股债利差(%, 右轴)", type: "line", yAxisIndex: 1, showSymbol: false, data: erpVal, itemStyle: { color: "#34d399" } }
+          ]
+        });
+      }
+
+      updateTempChart();
+      updatePieAndWeights();
+      updateSubChart();
+
+      // Filter button events
+      document.querySelectorAll("#range-buttons .btn-filter").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("#range-buttons .btn-filter").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          currentRange = btn.getAttribute("data-range");
+          updateTempChart();
+          updatePieAndWeights();
+          updateSubChart();
+        });
+      });
+
+      document.querySelectorAll("#sub-index-buttons .btn-filter").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("#sub-index-buttons .btn-filter").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          currentSubIdx = btn.getAttribute("data-idx");
+          updateSubChart();
+        });
+      });
+
+      window.addEventListener("resize", () => {
+        chartTemp.resize();
+        chartPie.resize();
+        chartWeights.resize();
+        chartSub.resize();
+      });
+    })();
+  </script>
+</body>
+</html>

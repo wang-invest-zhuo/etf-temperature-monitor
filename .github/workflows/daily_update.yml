@@ -1,0 +1,66 @@
+name: Daily 5.2 ETF Temperature Strategy Update
+
+on:
+  # 1. 每个交易日（周一至周五）北京时间 18:30 (UTC 10:30) 自动运行
+  schedule:
+    - cron: '30 10 * * 1-5'
+
+  # 2. 支持在 GitHub Actions 页面手动点击 "Run workflow" 立即触发
+  workflow_dispatch:
+
+  # 3. 首次推送代码或修改策略脚本时自动运行一次，立即生成初始数据
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'run_daily_5_2.py'
+      - 'requirements.txt'
+      - '.github/workflows/daily_update.yml'
+
+# 显式声明仓库写入权限，允许 Action 将最新计算的 docs/ 数据自动提交回仓库
+permissions:
+  contents: write
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. 检出仓库代码 (Checkout)
+        uses: actions/checkout@v4
+
+      - name: 2. 配置 Python 3.11 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 3. 安装依赖 (akshare & pandas)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 4. 执行 5.2 估值温度策略计算
+        run: |
+          python run_daily_5_2.py
+
+      - name: 5. 将今日报告写入 GitHub Actions Summary
+        if: success()
+        run: |
+          if [ -f docs/latest_report.md ]; then
+            cat docs/latest_report.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 6. 自动提交并推送最新数据以触发 GitHub Pages 更新
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/data.json docs/data.js docs/latest_report.md
+          if git diff --staged --quiet; then
+            echo "今日估值数据无变化，无需重复提交。"
+          else
+            git commit -m "chore(data): update 5.2 ETF temperature data ($(date -u +'%Y-%m-%d'))"
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
