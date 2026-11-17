@@ -125,9 +125,9 @@ def fetch_bond_10y() -> pd.Series:
     print("正在拉取中国 10 年期国债到期收益率数据...")
     try:
         try:
-            bond_df = retry_call(ak.bond_zh_us_rate, start_date="20050101")
+            bond_df = retry_call(ak.bond_zh_us_yield_em, start_date="20050101")
         except TypeError:
-            bond_df = retry_call(ak.bond_zh_us_rate)
+            bond_df = retry_call(ak.bond_zh_us_yield_em)
 
         bond_df["日期"] = pd.to_datetime(bond_df["日期"])
         bond_df.set_index("日期", inplace=True)
