@@ -638,14 +638,22 @@
 
     <!-- Chart 3: Sub-indicators History -->
     <section class="card chart-card">
-      <div class="card-header">
+      <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
         <div class="card-title">🔍 指数分项估值指标历史走势（PE分位 / PB分位 / ERP股债利差）</div>
-        <div class="btn-group" id="sub-index-buttons">
-          <button class="btn-filter active" data-idx="300">沪深300 细项</button>
-          <button class="btn-filter" data-idx="500">中证500 细项</button>
+        <div style="display: flex; gap: 14px; flex-wrap: wrap; align-items: center;">
+          <div class="btn-group" id="sub-index-buttons">
+            <button class="btn-filter active" data-idx="300">沪深300 细项</button>
+            <button class="btn-filter" data-idx="500">中证500 细项</button>
+          </div>
+          <div class="btn-group" id="sub-range-buttons">
+            <button class="btn-filter" data-range="1y">近 1 年</button>
+            <button class="btn-filter" data-range="3y">近 3 年</button>
+            <button class="btn-filter active" data-range="2020">2020 至今 (回测区间)</button>
+            <button class="btn-filter" data-range="all">全部历史</button>
+          </div>
         </div>
       </div>
-      <div id="chart-sub" class="chart-box" style="height: 350px;"></div>
+      <div id="chart-sub" class="chart-box"></div>
     </section>
 
     <!-- Nine-Grid Matrix Table -->
@@ -817,6 +825,7 @@
       }
 
       let currentRange = "2020";
+      let currentSubRange = "2020";
       let currentSubIdx = "300";
 
       function updateTempChart() {
@@ -981,24 +990,47 @@
       }
 
       function updateSubChart() {
-        const startIdx = getStartIndex(currentRange);
+        const startIdx = getStartIndex(currentSubRange);
         const dates = h.dates.slice(startIdx);
         const pePct = (currentSubIdx === "300" ? h.pe_pct_300 : h.pe_pct_500).slice(startIdx);
         const pbPct = (currentSubIdx === "300" ? h.pb_pct_300 : h.pb_pct_500).slice(startIdx);
         const erpVal = (currentSubIdx === "300" ? h.erp_300 : h.erp_500).slice(startIdx);
+        const peVal = (currentSubIdx === "300" ? h.pe_300 : h.pe_500).slice(startIdx);
+        const pbVal = (currentSubIdx === "300" ? h.pb_300 : h.pb_500).slice(startIdx);
+        const erpPct = (currentSubIdx === "300" ? h.erp_pct_300 : h.erp_pct_500).slice(startIdx);
 
         chartSub.setOption({
-          tooltip: { trigger: "axis" },
+          backgroundColor: "transparent",
+          tooltip: {
+            trigger: "axis",
+            backgroundColor: "rgba(15, 23, 42, 0.95)",
+            borderColor: "#334155",
+            textStyle: { color: "#f1f5f9" },
+            formatter: function (params) {
+              const i = params[0].dataIndex;
+              return `
+                <div style="font-weight:700;margin-bottom:6px;">📅 ${dates[i]} (${currentSubIdx === "300" ? "沪深300" : "中证500"})</div>
+                <div style="color:#38bdf8;">● PE-TTM 10年分位: <b>${pePct[i]}%</b> (PE: ${peVal[i]}x)</div>
+                <div style="color:#a855f7;margin-top:4px;">● PB 10年分位: <b>${pbPct[i]}%</b> (PB: ${pbVal[i]}x)</div>
+                <div style="color:#34d399;margin-top:4px;">● ERP 股债利差: <b>${erpVal[i] != null ? erpVal[i] + "%" : "--"}</b> (5年分位: ${erpPct[i] != null ? erpPct[i] + "%" : "--"})</div>
+              `;
+            }
+          },
           legend: {
             data: ["PE-TTM 10年分位(%)", "PB 10年分位(%)", "ERP 股债利差(%, 右轴)"],
             textStyle: { color: "#cbd5e1" },
             top: 0
           },
-          grid: { left: 48, right: 52, top: 38, bottom: 30 },
+          grid: { left: 48, right: 52, top: 40, bottom: 55 },
+          dataZoom: [
+            { type: "inside", start: 0, end: 100 },
+            { type: "slider", height: 22, bottom: 10, borderColor: "#243252", textStyle: { color: "#94a3b8" } }
+          ],
           xAxis: {
             type: "category",
             data: dates,
-            axisLabel: { color: "#94a3b8" }
+            axisLabel: { color: "#94a3b8" },
+            axisLine: { lineStyle: { color: "#334155" } }
           },
           yAxis: [
             {
@@ -1015,9 +1047,9 @@
             }
           ],
           series: [
-            { name: "PE-TTM 10年分位(%)", type: "line", showSymbol: false, data: pePct, itemStyle: { color: "#38bdf8" } },
-            { name: "PB 10年分位(%)", type: "line", showSymbol: false, data: pbPct, itemStyle: { color: "#a855f7" } },
-            { name: "ERP 股债利差(%, 右轴)", type: "line", yAxisIndex: 1, showSymbol: false, data: erpVal, itemStyle: { color: "#34d399" } }
+            { name: "PE-TTM 10年分位(%)", type: "line", showSymbol: false, lineStyle: { width: 2 }, data: pePct, itemStyle: { color: "#38bdf8" } },
+            { name: "PB 10年分位(%)", type: "line", showSymbol: false, lineStyle: { width: 2 }, data: pbPct, itemStyle: { color: "#a855f7" } },
+            { name: "ERP 股债利差(%, 右轴)", type: "line", yAxisIndex: 1, showSymbol: false, lineStyle: { width: 2 }, data: erpVal, itemStyle: { color: "#34d399" } }
           ]
         });
       }
@@ -1034,6 +1066,14 @@
           currentRange = btn.getAttribute("data-range");
           updateTempChart();
           updatePieAndWeights();
+        });
+      });
+
+      document.querySelectorAll("#sub-range-buttons .btn-filter").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("#sub-range-buttons .btn-filter").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          currentSubRange = btn.getAttribute("data-range");
           updateSubChart();
         });
       });
