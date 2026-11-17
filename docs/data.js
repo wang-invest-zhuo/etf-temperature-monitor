@@ -7,7 +7,7 @@ window.STRATEGY_DATA = {
     "hs300": { "code": "510300.XSHG", "name": "沪深300 ETF", "role": "大盘蓝筹" },
     "zz500": { "code": "510500.XSHG", "name": "中证500 ETF", "role": "中盘成长/周期" },
     "div_lowvol": { "code": "512890.XSHG", "name": "红利低波 ETF", "role": "现金流底仓" },
-    "bond": { "code": "511010.XSHG", "name": "国债 ETF", "role": "股债跷跷板蓄水池" },
+    "bond": { "code": "511260.XSHG", "name": "10年国债 ETF", "role": "股债跷跷板蓄水池" },
     "gold": { "code": "518880.XSHG", "name": "黄金 ETF", "role": "抗通胀/汇率底仓" }
   },
   "current": {

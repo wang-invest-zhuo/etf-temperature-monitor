@@ -24,7 +24,7 @@ ETF_META = {
     "hs300": {"code": "510300.XSHG", "name": "沪深300 ETF", "role": "大盘蓝筹"},
     "zz500": {"code": "510500.XSHG", "name": "中证500 ETF", "role": "中盘成长/周期"},
     "div_lowvol": {"code": "512890.XSHG", "name": "红利低波 ETF", "role": "现金流底仓"},
-    "bond": {"code": "511010.XSHG", "name": "国债 ETF", "role": "股债跷跷板蓄水池"},
+    "bond": {"code": "511260.XSHG", "name": "10年国债 ETF", "role": "股债跷跷板蓄水池"},
     "gold": {"code": "518880.XSHG", "name": "黄金 ETF", "role": "抗通胀/汇率底仓"},
 }
 
@@ -270,8 +270,8 @@ def calc_composite_temperature_on_date(val_df: pd.DataFrame, eval_date: pd.Times
         # 中证500综合温度：30% PE分位 + 40% PB分位 + 30% (1 - ERP分位)
         raw_temp = 0.30 * pe_pct + 0.40 * pb_pct + 0.30 * erp_temp
         temp = raw_temp
-        # 【中证500周期股盈利失真保护】：当 PE 分位 > 50% 但 PB 分位 <= 15% 时，一票否决 PE 虚高
-        if pe_pct > 0.50 and pb_pct <= 0.15:
+        # 【中证500周期股盈利失真保护】：当 PB 分位 <= 15% 时，一票否决 PE 虚高
+        if pb_pct <= 0.15:
             temp = min(temp, pb_pct)
             cyclical_veto = True
 
@@ -582,7 +582,7 @@ def main():
         f"| **沪深300 ETF** | `510300.XSHG` | **{w['hs300']}%** | {round(c['deposit_amt'] * w['hs300'] / 100)} 元 |",
         f"| **中证500 ETF** | `510500.XSHG` | **{w['zz500']}%** | {round(c['deposit_amt'] * w['zz500'] / 100)} 元 |",
         f"| **红利低波 ETF** | `512890.XSHG` | **{w['div_lowvol']}%** | {round(c['deposit_amt'] * w['div_lowvol'] / 100)} 元 |",
-        f"| **国债 ETF** | `511010.XSHG` | **{w['bond']}%** | {round(c['deposit_amt'] * w['bond'] / 100)} 元 |",
+        f"| **10年国债 ETF** | `511260.XSHG` | **{w['bond']}%** | {round(c['deposit_amt'] * w['bond'] / 100)} 元 |",
         f"| **黄金 ETF** | `518880.XSHG` | **{w['gold']}%** | {round(c['deposit_amt'] * w['gold'] / 100)} 元 |",
         f"",
     ]
